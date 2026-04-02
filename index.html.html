@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FinTrack - Personal Finance</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    body { font-family: 'Inter', system-ui, sans-serif; }
+    .card { transition: all 0.2s ease; }
+    .card:hover { transform: translateY(-4px); box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1); }
+  </style>
+</head>
+<body class="bg-zinc-950 text-zinc-100 min-h-screen">
+
+  <div class="flex h-screen">
+
+    <!-- Sidebar -->
+    <div class="w-64 bg-zinc-900 border-r border-zinc-800 p-6 flex flex-col">
+      <div class="flex items-center gap-3 mb-10">
+        <div class="w-9 h-9 bg-emerald-600 rounded-2xl flex items-center justify-center text-white text-2xl font-bold">₹</div>
+        <h1 class="text-2xl font-semibold">FinTrack</h1>
+      </div>
+
+      <div class="flex flex-col gap-2">
+        <button onclick="switchTab(0)" id="btn0" class="nav-btn flex items-center gap-3 px-5 py-3 rounded-2xl bg-zinc-800 text-white">
+          <i class="fa-solid fa-house"></i> Overview
+        </button>
+        <button onclick="switchTab(1)" id="btn1" class="nav-btn flex items-center gap-3 px-5 py-3 rounded-2xl hover:bg-zinc-800">
+          <i class="fa-solid fa-receipt"></i> Transactions
+        </button>
+        <button onclick="switchTab(2)" id="btn2" class="nav-btn flex items-center gap-3 px-5 py-3 rounded-2xl hover:bg-zinc-800">
+          <i class="fa-solid fa-lightbulb"></i> Insights
+        </button>
+      </div>
+
+      <div class="mt-auto">
+        <div class="text-xs text-zinc-400 mb-2">Demo Role</div>
+        <select id="roleSelect" onchange="changeRole()" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl py-3 px-4 text-sm">
+          <option value="admin">Admin (can edit)</option>
+          <option value="viewer">Viewer (read only)</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="flex-1 overflow-auto">
+      <header class="sticky top-0 bg-zinc-900 border-b border-zinc-800 px-8 py-6 flex items-center justify-between">
+        <h2 id="pageTitle" class="text-3xl font-semibold">Overview</h2>
+        <button onclick="openAddModal()" id="addBtn"
+                class="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 px-6 py-3 rounded-2xl font-medium">
+          <i class="fa-solid fa-plus"></i> New Entry
+        </button>
+      </header>
+
+      <!-- Overview -->
+      <div id="content0" class="p-8">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+          <div class="bg-zinc-900 border border-zinc-800 rounded-3xl p-8 card">
+            <p class="text-zinc-400">Total Balance</p>
+            <p id="bal" class="text-5xl font-semibold mt-3">₹1,24,850</p>
+            <p class="text-emerald-400 text-sm mt-6">+12.4% from last month</p>
+          </div>
+          <div class="bg-zinc-900 border border-zinc-800 rounded-3xl p-8 card">
+            <p class="text-zinc-400">Income this month</p>
+            <p id="inc" class="text-5xl font-semibold mt-3 text-emerald-500">₹2,45,600</p>
+          </div>
+          <div class="bg-zinc-900 border border-zinc-800 rounded-3xl p-8 card">
+            <p class="text-zinc-400">Expenses this month</p>
+            <p id="exp" class="text-5xl font-semibold mt-3 text-red-500">₹1,20,750</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="bg-zinc-900 border border-zinc-800 rounded-3xl p-8">
+            <h3 class="font-medium mb-6">Balance Trend</h3>
+            <canvas id="trendChart"></canvas>
+          </div>
+          <div class="bg-zinc-900 border border-zinc-800 rounded-3xl p-8">
+            <h3 class="font-medium mb-6">Spending Breakdown</h3>
+            <canvas id="spendChart"></canvas>
+          </div>
+        </div>
+
+        <div class="mt-10 bg-zinc-900 border border-zinc-800 rounded-3xl p-8">
+          <h3 class="font-medium mb-6">Recent Transactions</h3>
+          <div id="recentArea" class="space-y-4"></div>
+        </div>
+      </div>
+
+      <!-- Transactions -->
+      <div id="content1" class="p-8 hidden">
+        <div class="flex gap-4 mb-6">
+          <input id="searchInput" onkeyup="applyFilters()" placeholder="Search..." 
+                 class="flex-1 bg-zinc-900 border border-zinc-700 rounded-2xl px-5 py-4 focus:border-emerald-500 outline-none">
+          <select id="typeFilter" onchange="applyFilters()" class="bg-zinc-900 border border-zinc-700 rounded-2xl px-5 py-4 outline-none">
+            <option value="">All</option>
+            <option value="income">Income</option>
+            <option value="expense">Expense</option>
+          </select>
+        </div>
+
+        <div class="bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden">
+          <table class="w-full">
+            <thead>
+              <tr class="border-b border-zinc-800 text-sm text-zinc-400">
+                <th class="p-6 text-left">Date</th>
+                <th class="p-6 text-left">Description</th>
+                <th class="p-6 text-left">Category</th>
+                <th class="p-6 text-right">Amount</th>
+                <th class="p-6 text-center">Action</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody" class="divide-y divide-zinc-800"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Insights -->
+      <div id="content2" class="p-8 hidden">
+        <h2 class="text-2xl font-semibold mb-8">April Insights</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="bg-zinc-900 border border-zinc-800 rounded-3xl p-8">
+            <p class="uppercase text-xs tracking-widest text-red-400">Highest spend</p>
+            <p class="text-4xl font-semibold mt-3">Food & Dining</p>
+            <p class="mt-6 text-zinc-400">₹38,420 • 32% of total expenses</p>
+          </div>
+          <div class="bg-zinc-900 border border-zinc-800 rounded-3xl p-8">
+            <p class="uppercase text-xs tracking-widest text-emerald-400">Vs Last Month</p>
+            <p class="text-5xl font-semibold text-emerald-500 mt-3">+18%</p>
+            <p class="mt-6 text-zinc-400">You saved ₹12,340 more this month</p>
+          </div>
+        </div>
+        <div class="mt-8 bg-zinc-900 border border-zinc-800 rounded-3xl p-8">
+          <p class="text-zinc-300">Your subscription expenses (Netflix, Spotify, etc.) have gone up again. Might be a good time to review what you’re actually using.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Modal -->
+  <div id="modal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+    <div class="bg-zinc-900 rounded-3xl max-w-md w-full mx-4 p-8">
+      <h3 class="text-xl font-medium mb-6">New Transaction</h3>
+      <input id="descField" placeholder="Description" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-5 py-4 mb-4 outline-none focus:border-emerald-500">
+      <div class="grid grid-cols-2 gap-4 mb-4">
+        <input id="amtField" type="number" placeholder="Amount" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-5 py-4 outline-none focus:border-emerald-500">
+        <select id="typeField" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-5 py-4 outline-none focus:border-emerald-500">
+          <option value="expense">Expense</option>
+          <option value="income">Income</option>
+        </select>
+      </div>
+      <select id="catField" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-5 py-4 mb-8 outline-none focus:border-emerald-500">
+        <option value="Food">Food & Dining</option>
+        <option value="Transport">Transport</option>
+        <option value="Shopping">Shopping</option>
+        <option value="Bills">Bills & Utilities</option>
+        <option value="Salary">Salary</option>
+        <option value="Entertainment">Entertainment</option>
+      </select>
+      <div class="flex gap-4">
+        <button onclick="closeModal()" class="flex-1 py-4 border border-zinc-700 rounded-2xl">Cancel</button>
+        <button onclick="saveNewEntry()" class="flex-1 py-4 bg-emerald-600 rounded-2xl">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let entries = [
+      {id:1, date:"2026-04-01", desc:"Salary deposit", cat:"Salary", amt:185000, type:"income"},
+      {id:2, date:"2026-04-02", desc:"Zomato dinner", cat:"Food", amt:1240, type:"expense"},
+      {id:3, date:"2026-04-03", desc:"Uber ride", cat:"Transport", amt:450, type:"expense"},
+      {id:4, date:"2026-04-04", desc:"Freelance payment", cat:"Salary", amt:32000, type:"income"},
+      {id:5, date:"2026-04-05", desc:"Amazon headphones", cat:"Shopping", amt:2890, type:"expense"}
+    ];
+
+    let role = "admin";
+    let trendChart = null;
+    let spendChart = null;
+
+    function updateSummary() {
+      let income = entries.filter(e => e.type === "income").reduce((a, b) => a + b.amt, 0);
+      let expense = entries.filter(e => e.type === "expense").reduce((a, b) => a + b.amt, 0);
+      let balance = income - expense;
+
+      document.getElementById("bal").textContent = `₹${balance.toLocaleString("en-IN")}`;
+      document.getElementById("inc").textContent = `₹${income.toLocaleString("en-IN")}`;
+      document.getElementById("exp").textContent = `₹${expense.toLocaleString("en-IN")}`;
+    }
+
+    function drawCharts() {
+      if (trendChart) trendChart.destroy();
+      if (spendChart) spendChart.destroy();
+
+      trendChart = new Chart(document.getElementById("trendChart"), {
+        type: "line",
+        data: {
+          labels: ["Oct","Nov","Dec","Jan","Feb","Mar"],
+          datasets: [{ label: "Balance", data: [82000,95000,108000,97000,115000,124850], borderColor: "#10b981", tension: 0.4, borderWidth: 3 }]
+        },
+        options: { plugins: { legend: { display: false }}, scales: { y: { grid: { color: "#27272a" }}, x: { grid: { color: "#27272a" }}}}
+      });
+
+      spendChart = new Chart(document.getElementById("spendChart"), {
+        type: "doughnut",
+        data: {
+          labels: ["Food","Transport","Shopping","Bills","Entertainment"],
+          datasets: [{ data: [38420,12400,8900,15600,6200], backgroundColor: ["#f43f5e","#eab308","#8b5cf6","#14b8a6","#ec4899"] }]
+        },
+        options: { plugins: { legend: { position: "bottom", labels: { color: "#a1a1aa", padding: 20 }}} }
+      });
+    }
+
+    function renderRecent() {
+      const container = document.getElementById("recentArea");
+      container.innerHTML = "";
+      entries.slice(0, 4).forEach(e => {
+        const div = document.createElement("div");
+        div.className = `flex justify-between p-5 rounded-2xl ${e.type==="income" ? "bg-emerald-900/30" : "bg-red-900/30"}`;
+        div.innerHTML = `
+          <div><div class="font-medium">${e.desc}</div><div class="text-xs text-zinc-500">${e.date} • ${e.cat}</div></div>
+          <div class="font-semibold ${e.type==="income" ? "text-emerald-400" : "text-red-400"}">
+            ${e.type==="income" ? "+" : "-"}₹${e.amt.toLocaleString("en-IN")}
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function renderTable(filtered = entries) {
+      const tbody = document.getElementById("tableBody");
+      tbody.innerHTML = "";
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="p-12 text-center text-zinc-400">No transactions match your search</td></tr>`;
+        return;
+      }
+      filtered.forEach(e => {
+        const row = document.createElement("tr");
+        row.className = "hover:bg-zinc-800";
+        row.innerHTML = `
+          <td class="p-6">${e.date}</td>
+          <td class="p-6">${e.desc}</td>
+          <td class="p-6"><span class="px-4 py-1 bg-zinc-800 rounded-full text-xs">${e.cat}</span></td>
+          <td class="p-6 text-right font-medium ${e.type==="income" ? "text-emerald-400" : "text-red-400"}">
+            ${e.type==="income" ? "+" : "-"}₹${e.amt.toLocaleString("en-IN")}
+          </td>
+          <td class="p-6 text-center">
+            ${role === "admin" ? `<button onclick="deleteItem(${e.id})" class="text-red-400 hover:text-red-500"><i class="fa-solid fa-trash"></i></button>` : `<span class="text-xs text-zinc-500">read only</span>`}
+          </td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    function applyFilters() {
+      const term = document.getElementById("searchInput").value.toLowerCase();
+      const typ = document.getElementById("typeFilter").value;
+      let result = entries;
+      if (term) result = result.filter(e => e.desc.toLowerCase().includes(term) || e.cat.toLowerCase().includes(term));
+      if (typ) result = result.filter(e => e.type === typ);
+      renderTable(result);
+    }
+
+    function changeRole() {
+      role = document.getElementById("roleSelect").value;
+      const btn = document.getElementById("addBtn");
+      btn.style.opacity = role === "admin" ? "1" : "0.4";
+      btn.style.pointerEvents = role === "admin" ? "all" : "none";
+      renderTable();
+    }
+
+    function openAddModal() {
+      if (role !== "admin") return alert("Switch to Admin role to add entries");
+      document.getElementById("modal").classList.remove("hidden");
+    }
+
+    function closeModal() {
+      document.getElementById("modal").classList.add("hidden");
+    }
+
+    function saveNewEntry() {
+      const desc = document.getElementById("descField").value.trim() || "New entry";
+      const amt = parseFloat(document.getElementById("amtField").value);
+      if (!amt || amt <= 0) return alert("Please enter a valid amount");
+
+      entries.unshift({
+        id: Date.now(),
+        date: "2026-04-02",
+        desc: desc,
+        cat: document.getElementById("catField").value,
+        amt: amt,
+        type: document.getElementById("typeField").value
+      });
+
+      closeModal();
+      updateSummary();
+      renderRecent();
+      renderTable();
+      drawCharts();
+    }
+
+    function deleteItem(id) {
+      if (role !== "admin") return;
+      if (confirm("Delete this transaction?")) {
+        entries = entries.filter(e => e.id !== id);
+        updateSummary();
+        renderRecent();
+        renderTable();
+      }
+    }
+
+    function switchTab(n) {
+      for (let i = 0; i < 3; i++) {
+        document.getElementById(`content${i}`).classList.add("hidden");
+        document.getElementById(`btn${i}`).classList.remove("bg-zinc-800", "text-white");
+      }
+      document.getElementById(`content${n}`).classList.remove("hidden");
+      document.getElementById(`btn${n}`).classList.add("bg-zinc-800", "text-white");
+
+      const titles = ["Overview", "Transactions", "Insights"];
+      document.getElementById("pageTitle").textContent = titles[n];
+
+      if (n === 1) applyFilters();
+    }
+
+    // Start the app
+    window.onload = () => {
+      updateSummary();
+      renderRecent();
+      drawCharts();
+      renderTable();
+      switchTab(0);
+      changeRole(); // set initial button state
+    };
+  </script>
+</body>
+</html>
